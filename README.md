@@ -1,5 +1,7 @@
 # Habita Portugal
 
+![Mapa](docs/screenshot.png)
+
 Quanto custa uma casa para uma família de classe média, em cada distrito, concelho e freguesia de Portugal.
 
 Mapa coroplético (MapLibre) com dados oficiais do INE. O nível muda com o zoom:
