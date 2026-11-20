@@ -67,13 +67,3 @@ export function index(rowsList, filter = () => true, value = r => num(r.valor)) 
   }
   return out;
 }
-
-/** Concelho names as INE writes them (proper case), keyed by DTMN. */
-export function names(rowsList) {
-  const out = new Map();
-  for (const r of rowsList) {
-    const c = caopCode(r.geocod);
-    if (c && !out.has(c.code)) out.set(c.code, r.geodsg);
-  }
-  return out;
-}

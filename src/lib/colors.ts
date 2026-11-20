@@ -20,13 +20,6 @@ function nice(v: number, range: number) {
   return Math.round(v / step) * step;
 }
 
-export function colorFor(v: number | undefined, breaks: number[]) {
-  if (v == null) return NO_DATA;
-  let i = 0;
-  while (i < breaks.length && v >= breaks[i]) i++;
-  return RAMP[Math.min(i, RAMP.length - 1)];
-}
-
 /** MapLibre expression: step(value, c0, b1, c1, …) with a no-data fallback. */
 export function fillExpression(key: string, breaks: number[]): unknown {
   if (!breaks.length) return ['case', ['has', key], RAMP[3], NO_DATA];
