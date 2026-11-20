@@ -1,0 +1,33 @@
+{
+  "name": "habita-portugal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Habitação em Portugal: preço por m², vendas e acesso à casa de família, por distrito, concelho e freguesia.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite build && vite preview",
+    "data": "node scripts/build-data.mjs",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@vitejs/plugin-react": "^4.7.0",
+    "lucide-react": "^0.577.0",
+    "maplibre-gl": "^6.17.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "mapshaper": "^0.6.102",
+    "tailwindcss": "^4.2.2",
+    "typescript": "~5.8.2",
+    "vite": "^6.4.1"
+  }
+}

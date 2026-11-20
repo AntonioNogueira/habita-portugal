@@ -1,0 +1,12 @@
+# Render blueprint: https://render.com → New → Blueprint → pick this repository.
+# Static site: the data is pre-built in public/data (npm run data), so no server is needed.
+services:
+  - type: web
+    name: habita-portugal
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /data/*
+        name: Cache-Control
+        value: public, max-age=86400
