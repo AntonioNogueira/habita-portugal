@@ -6,11 +6,12 @@ import path from 'node:path';
 const CACHE = path.resolve('.cache');
 const API = 'https://www.ine.pt/ine/json_indicador/pindica.jsp';
 
-export async function fetchIndicator(varcd, { period } = {}) {
+export async function fetchIndicator(varcd, { period, filters = {} } = {}) {
   fs.mkdirSync(CACHE, { recursive: true });
-  const file = path.join(CACHE, `ine-${varcd}${period ? '-' + period : ''}.json`);
+  const extra = Object.entries(filters);
+  const file = path.join(CACHE, `ine-${varcd}${period ? '-' + period : ''}${extra.map(([k, v]) => `-${k}${v}`).join('')}.json`);
   if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
-  const url = `${API}?op=2&varcd=${varcd}&lang=PT${period ? `&Dim1=${period}` : ''}`;
+  const url = `${API}?op=2&varcd=${varcd}&lang=PT${period ? `&Dim1=${period}` : ''}${extra.map(([k, v]) => `&${k}=${v}`).join('')}`;
   let lastError;
   for (let attempt = 1; attempt <= 6; attempt++) {
     try {
