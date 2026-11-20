@@ -30,11 +30,13 @@ export async function boundaries() {
   const input = { 'f.json': fs.readFileSync(src, 'utf8') };
   const run = async cmd => JSON.parse((await mapshaper.applyCommands(cmd, input))['out.json']);
   const base = `-i f.json -each 'fr=Dicofre, co=Dicofre.slice(0,4), di=Dicofre.slice(0,2), fname=Freguesia, cname=Concelho, dname=Distrito'`;
-  // Coverage-aware simplification keeps shared borders matching. Freguesias keep more detail (seen zoomed in).
+  // Simplify once, on the freguesia topology, then dissolve: concelho and distrito borders reuse the same
+  // simplified arcs, so the lines of every level coincide exactly.
+  const simplified = `${base} -simplify 10% keep-shapes`;
   const [fr, co, di] = await Promise.all([
-    run(`${base} -dissolve2 fr copy-fields=co,fname -simplify 12% keep-shapes -o out.json format=geojson precision=0.00001`),
-    run(`${base} -dissolve2 co copy-fields=di,cname gap-fill-area=60km2 -simplify 6% keep-shapes -o out.json format=geojson precision=0.0001`),
-    run(`${base} -dissolve2 di copy-fields=dname gap-fill-area=60km2 -simplify 4% keep-shapes -o out.json format=geojson precision=0.0001`),
+    run(`${simplified} -dissolve2 fr copy-fields=co,fname -o out.json format=geojson precision=0.00001`),
+    run(`${simplified} -dissolve2 co copy-fields=di,cname gap-fill-area=60km2 -o out.json format=geojson precision=0.00001`),
+    run(`${simplified} -dissolve2 di copy-fields=dname gap-fill-area=60km2 -o out.json format=geojson precision=0.00001`),
   ]);
   const map = (fc, f) => ({ type: 'FeatureCollection', features: fc.features.map(x => ({ type: 'Feature', geometry: x.geometry, properties: f(x.properties) })) });
   return {

@@ -4,7 +4,7 @@ import { Home, Info } from 'lucide-react';
 import Map from './components/Map';
 import Legend from './components/Legend';
 import AreaDetails from './components/AreaDetails';
-import { quantileBreaks } from './lib/colors';
+import { colorStops } from './lib/colors';
 import { LEVEL_LABEL, METRICS, metricByKey, type AreaProps, type Level, type Meta } from './lib/metrics';
 
 const LEVELS: Level[] = ['distrito', 'concelho', 'freguesia'];
@@ -15,6 +15,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [metric, setMetric] = useState('preco_m2');
   const [level, setLevel] = useState<Level>('distrito');
+  const [scaleView, setScaleView] = useState(false);
+  const [visible, setVisible] = useState<{ level: Level; values: number[] } | null>(null);
   const [selected, setSelected] = useState<{ level: Level; id: string } | null>(null);
   const [flyTo, setFlyTo] = useState<{ level: Level; id: string; n: number } | null>(null);
 
@@ -30,10 +32,12 @@ export default function App() {
     for (const l of LEVELS) {
       // Freguesias share the concelho scale so colours compare when zooming in.
       const src = l === 'freguesia' ? 'concelho' : l;
-      out[l] = quantileBreaks(data[src].features.map(f => f.properties?.[metric]).filter((v): v is number => typeof v === 'number'));
+      out[l] = colorStops(data[src].features.map(f => f.properties?.[metric]).filter((v): v is number => typeof v === 'number'));
     }
+    // "Área visível": refit the scale of the level on screen to the areas in view.
+    if (scaleView && visible && visible.values.length >= 3) out[visible.level] = colorStops(visible.values);
     return out;
-  }, [data, metric]);
+  }, [data, metric, scaleView, visible]);
 
   const byId = useMemo(() => {
     const out = {} as Record<Level, Record<string, AreaProps>>;
@@ -129,9 +133,16 @@ export default function App() {
 
       <main className="relative min-h-0 flex-1">
         {error && <div className="absolute inset-0 grid place-items-center text-sm text-red-700">Não foi possível carregar os dados: {error}</div>}
-        {data && <Map data={data} metric={metric} breaks={breaks} selected={selected} flyTo={flyTo} onSelect={setSelected} onLevel={setLevel} />}
+        {data && <Map data={data} metric={metric} breaks={breaks} selected={selected} flyTo={flyTo} onSelect={setSelected} onLevel={setLevel} onVisible={(l, values) => setVisible({ level: l, values })} />}
+        <div className="absolute top-3 left-3 flex overflow-hidden rounded-lg bg-white/95 text-xs shadow-md ring-1 ring-black/5" role="group" aria-label="Escala de cores">
+          <span className="px-2.5 py-1.5 text-[var(--ink-2)]">Escala</span>
+          {([['Portugal', false], ['Área visível', true]] as const).map(([label, v]) => (
+            <button key={label} onClick={() => setScaleView(v)} aria-pressed={scaleView === v}
+              className={`px-2.5 py-1.5 font-medium ${scaleView === v ? 'bg-[var(--ink)] text-white' : 'hover:bg-black/5'}`}>{label}</button>
+          ))}
+        </div>
         <div className="pointer-events-none absolute bottom-6 left-3">
-          <Legend metric={m} breaks={breaks[level]} level={level} />
+          <Legend metric={m} breaks={breaks[level]} level={level} fitted={scaleView && visible?.level === level} />
         </div>
       </main>
     </div>
