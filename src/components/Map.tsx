@@ -10,6 +10,8 @@ import { levelForZoom, metricByKey, ZOOM_CONCELHO, ZOOM_FREGUESIA, type AreaProp
 maplibregl.setWorkerUrl(mapWorkerUrl);
 
 const BASEMAP = 'https://tiles.openfreemap.org/styles/positron';
+// Used when the basemap can't be reached (offline, or pages that block outside requests): the choropleth still works, without place names.
+const FALLBACK_STYLE = { version: 8 as const, sources: {}, layers: [{ id: 'background', type: 'background' as const, paint: { 'background-color': '#f2f1ed' } }] };
 const LEVELS: Level[] = ['distrito', 'concelho', 'freguesia'];
 
 interface Props {
@@ -41,6 +43,10 @@ export default function Map({ data, metric, breaks, selected, flyTo, onSelect, o
       attributionControl: { compact: true, customAttribution: 'Dados: <a href="https://www.ine.pt">INE</a> · Limites: CAOP, <a href="https://www.dgterritorio.gov.pt">DGT</a>' },
     });
     map.current = m;
+    let fellBack = false;
+    m.on('error', () => {
+      if (!fellBack && !ready.current && !m.isStyleLoaded()) { fellBack = true; m.setStyle(FALLBACK_STYLE); }
+    });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
 

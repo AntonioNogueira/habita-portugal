@@ -19,7 +19,7 @@ export default function App() {
   const [flyTo, setFlyTo] = useState<{ level: Level; id: string; n: number } | null>(null);
 
   useEffect(() => {
-    Promise.all([...LEVELS.map(l => fetch(`/data/${l}.geojson`).then(r => r.json())), fetch('/data/meta.json').then(r => r.json())])
+    Promise.all([...LEVELS.map(l => fetch(`data/${l}.geojson`).then(r => r.json())), fetch('data/meta.json').then(r => r.json())])
       .then(([d, c, f, m]) => { setData({ distrito: d, concelho: c, freguesia: f }); setMeta(m); })
       .catch(e => setError(String(e)));
   }, []);

@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite';
 const port = Number(process.env.PORT) || 3000;
 
 export default defineConfig({
+  // Relative asset paths: the build works at any address (Render, a sub-folder, a static preview).
+  base: './',
   plugins: [react(), tailwindcss()],
   server: { port: 3000, host: '0.0.0.0' },
   // Web workers (MapLibre's) as ES modules, like the rest of the app.
