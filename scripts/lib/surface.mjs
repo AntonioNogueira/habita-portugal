@@ -50,7 +50,7 @@ function centroid(geom) {
 }
 
 /**
- * Writes public/data/surface/<metric>.bin (Uint16 per cell, row 0 = north, 65535 = outside / no data)
+ * Writes public/data/surface/<metric>.json (base64 Uint16 LE per cell, row 0 = north, 65535 = outside / no data)
  * and public/data/surface/grid.json (size, corners, value range per metric).
  */
 export function writeSurfaces(outDir, concelhos, freguesias, metrics) {
@@ -84,6 +84,7 @@ export function writeSurfaces(outDir, concelhos, freguesias, metrics) {
   const sigma2 = 2 * BANDWIDTH_KM * BANDWIDTH_KM;
   const reach = BANDWIDTH_KM * 3;
   const BUCKET = 0.1;
+  fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
   const grid = { cols: COLS, rows: ROWS, corners: [[w, n], [e, n], [e, south], [w, south]], bandwidthKm: BANDWIDTH_KM, metrics: {} };
 
@@ -134,7 +135,8 @@ export function writeSurfaces(outDir, concelhos, freguesias, metrics) {
     for (const v of vals) if (Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; }
     const q = new Uint16Array(COLS * ROWS);
     for (let i = 0; i < q.length; i++) q[i] = Number.isFinite(vals[i]) ? Math.round(((vals[i] - min) / (max - min || 1)) * (NODATA - 1)) : NODATA;
-    fs.writeFileSync(path.join(outDir, `${key}.bin`), Buffer.from(q.buffer));
+    // Base64 in JSON: served everywhere as a plain data file (static hosts and claude.ai artifacts alike).
+    fs.writeFileSync(path.join(outDir, `${key}.json`), JSON.stringify({ cols: COLS, rows: ROWS, uint16le: Buffer.from(q.buffer).toString('base64') }));
     grid.metrics[key] = { min, max };
     console.log(`  surface ${key}: ${COLS}×${ROWS}, ${pts.filter(p => p[3] === 1).length} freguesias with own value`);
   }

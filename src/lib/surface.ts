@@ -30,8 +30,9 @@ export async function loadSurface(key: string): Promise<Surface | null> {
   const grid = await loadGrid();
   const range = grid.metrics[key];
   if (!range) return null;
-  const buf = await fetch(`data/surface/${key}.bin`).then(r => r.arrayBuffer());
-  return { key, grid, values: new Uint16Array(buf), ...range };
+  const { uint16le } = await fetch(`data/surface/${key}.json`).then(r => r.json());
+  const bytes = Uint8Array.from(atob(uint16le), ch => ch.charCodeAt(0));
+  return { key, grid, values: new Uint16Array(bytes.buffer), ...range };
 }
 
 const hex = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
