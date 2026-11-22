@@ -1,7 +1,7 @@
 import { NO_DATA, RAMP } from '../lib/colors';
 import { LEVEL_LABEL, type Level, type Metric } from '../lib/metrics';
 
-export default function Legend({ metric, breaks, level, fitted }: { metric: Metric; breaks: number[]; level: Level; fitted?: boolean }) {
+export default function Legend({ metric, breaks, level, fitted, surface }: { metric: Metric; breaks: number[]; level: Level; fitted?: boolean; surface?: boolean }) {
   const fmt = (v: number) => metric.format(v).replace(/\/m²$/, '');
   const stops = breaks;
   const gradient = `linear-gradient(to right, ${RAMP.slice(0, Math.max(stops.length, 2)).map((c, i, a) => `${c} ${(i / (a.length - 1)) * 100}%`).join(', ')})`;
@@ -10,7 +10,7 @@ export default function Legend({ metric, breaks, level, fitted }: { metric: Metr
   return (
     <div className="pointer-events-auto rounded-lg bg-white/95 p-3 text-xs shadow-md ring-1 ring-black/5 w-[260px] max-w-[calc(100vw-24px)]">
       <div className="font-medium text-[13px] leading-tight">{metric.short}</div>
-      <div className="mb-2 text-[11px] text-[var(--ink-2)]">por {LEVEL_LABEL[level].toLowerCase()} · zoom para mudar de nível</div>
+      <div className="mb-2 text-[11px] text-[var(--ink-2)]">{surface ? 'superfície interpolada (≈1 km)' : <>por {LEVEL_LABEL[level].toLowerCase()} · zoom para mudar de nível</>}</div>
       <div className="relative mx-2">
         <div className="h-3 rounded" style={{ background: gradient }} />
         {stops.map((_, i) => <div key={i} className="absolute top-3 h-1.5 w-px bg-[var(--ink-3)]" style={{ left: `${at(i)}%` }} />)}

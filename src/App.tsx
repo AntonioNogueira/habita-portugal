@@ -5,6 +5,7 @@ import Map from './components/Map';
 import Legend from './components/Legend';
 import AreaDetails from './components/AreaDetails';
 import { colorStops } from './lib/colors';
+import { loadGrid, loadSurface, type Surface } from './lib/surface';
 import { LEVEL_LABEL, METRICS, metricByKey, type AreaProps, type Level, type Meta } from './lib/metrics';
 
 const LEVELS: Level[] = ['distrito', 'concelho', 'freguesia'];
@@ -16,6 +17,9 @@ export default function App() {
   const [metric, setMetric] = useState('preco_m2');
   const [level, setLevel] = useState<Level>('distrito');
   const [scaleView, setScaleView] = useState(false);
+  const [mode, setMode] = useState<'areas' | 'surface'>('areas');
+  const [surfaceKeys, setSurfaceKeys] = useState<string[]>([]);
+  const [surface, setSurface] = useState<Surface | null>(null);
   const [visible, setVisible] = useState<{ level: Level; values: number[] } | null>(null);
   const [selected, setSelected] = useState<{ level: Level; id: string } | null>(null);
   const [flyTo, setFlyTo] = useState<{ level: Level; id: string; n: number } | null>(null);
@@ -25,6 +29,15 @@ export default function App() {
       .then(([d, c, f, m]) => { setData({ distrito: d, concelho: c, freguesia: f }); setMeta(m); })
       .catch(e => setError(String(e)));
   }, []);
+
+  useEffect(() => { loadGrid().then(g => setSurfaceKeys(Object.keys(g.metrics))).catch(() => setSurfaceKeys([])); }, []);
+  const surfaceAvailable = surfaceKeys.includes(metric);
+  useEffect(() => {
+    if (mode !== 'surface' || !surfaceAvailable) { setSurface(null); return; }
+    let live = true;
+    loadSurface(metric).then(s => { if (live) setSurface(s); }).catch(() => live && setSurface(null));
+    return () => { live = false; };
+  }, [mode, metric, surfaceAvailable]);
 
   const breaks = useMemo(() => {
     const out = { distrito: [], concelho: [], freguesia: [] } as Record<Level, number[]>;
@@ -93,6 +106,23 @@ export default function App() {
             {meta && <p className="mt-1 text-[11px] text-[var(--ink-3)]">Período: {meta.periods[m.period]} · Fonte: INE</p>}
           </div>
 
+          <div>
+            <div className="text-xs font-medium text-[var(--ink-2)]">Simbologia</div>
+            <div className="mt-1 grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--line)] bg-white text-sm" role="group" aria-label="Simbologia">
+              {([['areas', 'Áreas (coroplético)'], ['surface', 'Superfície contínua']] as const).map(([v, label]) => (
+                <button key={v} onClick={() => setMode(v)} aria-pressed={mode === v}
+                  className={`px-3 py-1.5 ${mode === v ? 'bg-[var(--ink)] text-white' : 'hover:bg-black/5'}`}>{label}</button>
+              ))}
+            </div>
+            {mode === 'surface' && (
+              <p className="mt-1.5 text-[11px] leading-snug text-[var(--ink-3)]">
+                {surfaceAvailable
+                  ? 'Interpolação numa grelha de ≈1 km a partir das freguesias (núcleo gaussiano, 3 km). Onde o INE não publica a freguesia, entra o valor do concelho com menos peso. É uma estimativa visual, não um valor medido.'
+                  : 'Este indicador é uma contagem e não faz sentido como superfície: escolha um preço, renda, rendimento ou percentagem.'}
+              </p>
+            )}
+          </div>
+
           {meta && (
             <div className="grid grid-cols-3 gap-2 text-center">
               <Stat label="€/m² Portugal" value={meta.national.preco_m2 != null ? metricByKey.preco_m2.format(meta.national.preco_m2).replace('/m²', '') : '—'} />
@@ -133,7 +163,7 @@ export default function App() {
 
       <main className="relative min-h-0 flex-1">
         {error && <div className="absolute inset-0 grid place-items-center text-sm text-red-700">Não foi possível carregar os dados: {error}</div>}
-        {data && <Map data={data} metric={metric} breaks={breaks} selected={selected} flyTo={flyTo} onSelect={setSelected} onLevel={setLevel} onVisible={(l, values) => setVisible({ level: l, values })} />}
+        {data && <Map data={data} metric={metric} breaks={breaks} selected={selected} flyTo={flyTo} onSelect={setSelected} onLevel={setLevel} onVisible={(l, values) => setVisible({ level: l, values })} surface={surface} />}
         <div className="absolute top-3 left-3 flex overflow-hidden rounded-lg bg-white/95 text-xs shadow-md ring-1 ring-black/5" role="group" aria-label="Escala de cores">
           <span className="px-2.5 py-1.5 text-[var(--ink-2)]">Escala</span>
           {([['Portugal', false], ['Área visível', true]] as const).map(([label, v]) => (
@@ -142,7 +172,7 @@ export default function App() {
           ))}
         </div>
         <div className="pointer-events-none absolute bottom-6 left-3">
-          <Legend metric={m} breaks={breaks[level]} level={level} fitted={scaleView && visible?.level === level} />
+          <Legend metric={m} breaks={breaks[level]} level={level} fitted={scaleView && visible?.level === level} surface={!!surface} />
         </div>
       </main>
     </div>

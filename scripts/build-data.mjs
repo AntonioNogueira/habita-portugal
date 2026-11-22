@@ -2,6 +2,7 @@
 // Run: npm run data   (downloads into .cache/, delete it to refresh)
 import { rows, index, num } from './lib/ine.mjs';
 import { boundaries, write } from './lib/geo.mjs';
+import { writeSurfaces } from './lib/surface.mjs';
 
 // Latest periods. Update when INE publishes a new quarter/year (see docs/DADOS.md).
 const QUARTER = process.env.INE_QUARTER || 'S5A20262'; // 2.º trimestre 2026
@@ -114,5 +115,10 @@ write('public/data/meta.json', {
     preco: '0014763', vendas: '0014764', tipologia: '0014759', renda: '0014773', rendimento: '0012712', obras: '0013248', censos: '0014625',
   },
 });
+console.log('Surfaces');
+// Metrics that make sense as a continuous surface (prices, rents, income and ratios, not counts).
+const SURFACE_METRICS = ['preco_m2', 'preco_familia_m2', 'renda_m2', 'rendimento', 'anos_rendimento', 'esforco_renda', 'pct_parque_familia'];
+writeSurfaces('public/data/surface', geo.concelho, geo.freguesia, SURFACE_METRICS);
+
 const covered = level => geo[level].features.filter(f => f.properties.preco_m2 != null).length + '/' + geo[level].features.length;
 console.log(`Coverage (preço/m²): distritos ${covered('distrito')}, concelhos ${covered('concelho')}, freguesias ${covered('freguesia')}`);

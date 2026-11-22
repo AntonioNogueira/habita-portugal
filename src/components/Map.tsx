@@ -5,6 +5,7 @@ import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { FeatureCollection } from 'geojson';
 import { fillExpression } from '../lib/colors';
+import { renderSurface, valueAt, type Surface } from '../lib/surface';
 import { levelForZoom, metricByKey, ZOOM_CONCELHO, ZOOM_FREGUESIA, type AreaProps, type Level, LEVEL_LABEL } from '../lib/metrics';
 
 maplibregl.setWorkerUrl(mapWorkerUrl);
@@ -24,14 +25,16 @@ interface Props {
   onLevel: (l: Level) => void;
   /** Values of the areas on screen, for a colour scale fitted to the current view. */
   onVisible?: (level: Level, values: number[]) => void;
+  /** Continuous surface to draw instead of the area fills (null = areas). */
+  surface?: Surface | null;
 }
 
-export default function Map({ data, metric, breaks, selected, flyTo, onSelect, onLevel, onVisible }: Props) {
+export default function Map({ data, metric, breaks, selected, flyTo, onSelect, onLevel, onVisible, surface = null }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const ready = useRef(false);
-  const latest = useRef({ onVisible, metric, breaks, onSelect, onLevel });
-  latest.current = { onVisible, metric, breaks, onSelect, onLevel };
+  const latest = useRef({ surface, onVisible, metric, breaks, onSelect, onLevel });
+  latest.current = { surface, onVisible, metric, breaks, onSelect, onLevel };
 
   useEffect(() => {
     const m = new maplibregl.Map({
@@ -103,11 +106,14 @@ export default function Map({ data, metric, breaks, selected, flyTo, onSelect, o
       if (!h) { popup.remove(); return; }
       const { metric: k } = latest.current;
       const mt = metricByKey[k];
-      const v = h.props[k];
-      const note = h.level === 'concelho' && levelForZoom(m.getZoom()) === 'freguesia' ? '<div style="color:#8a8984">freguesia sem dados · valor do concelho</div>' : '';
+      const sf = latest.current.surface;
+      const sv = sf ? valueAt(sf, e.lngLat.lng, e.lngLat.lat) : null;
+      const v = sf ? (sv ?? undefined) : h.props[k];
+      const note = sf ? '<div style="color:#8a8984">valor interpolado neste ponto</div>'
+        : h.level === 'concelho' && levelForZoom(m.getZoom()) === 'freguesia' ? '<div style="color:#8a8984">freguesia sem dados · valor do concelho</div>' : '';
       popup.setLngLat(e.lngLat).setHTML(
         `<div style="color:#52514e;font-size:11px">${LEVEL_LABEL[h.level]}</div><strong>${escape(h.props.name)}</strong>` +
-        `<div>${typeof v === 'number' ? mt.format(v) : '<span style="color:#8a8984">sem dados</span>'}</div>${note}`,
+        `<div>${typeof v === 'number' ? (sf ? '≈ ' : '') + mt.format(sf ? Math.round(v * 100) / 100 : v) : '<span style="color:#8a8984">sem dados</span>'}</div>${note}`,
       ).addTo(m);
     });
     m.on('mouseout', () => popup.remove());
@@ -140,6 +146,33 @@ export default function Map({ data, metric, breaks, selected, flyTo, onSelect, o
     for (const level of LEVELS) m.setPaintProperty(`area-${level}`, 'fill-color', fillExpression(metric, breaks[level]) as never);
     m.setFilter('area-freguesia', ['has', metric]);
   }, [metric, breaks]);
+
+  // Surface mode: draw the interpolated grid as an image and hide the area fills (still hoverable/clickable).
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready.current) return;
+    const opacity = {
+      distrito: 0.82,
+      concelho: ['interpolate', ['linear'], ['zoom'], ZOOM_FREGUESIA - 0.3, 0.82, ZOOM_FREGUESIA, 0.3],
+      freguesia: 0.85,
+    } as const;
+    for (const level of LEVELS) m.setPaintProperty(`area-${level}`, 'fill-opacity', (surface ? 0 : opacity[level]) as never);
+    m.setPaintProperty('line-concelho', 'line-color', surface ? 'rgba(255,255,255,0.7)' : '#ffffff');
+    m.setLayoutProperty('line-freguesia', 'visibility', surface ? 'none' : 'visible');
+    if (!surface) {
+      if (m.getLayer('surface')) m.removeLayer('surface');
+      if (m.getSource('surface')) m.removeSource('surface');
+      return;
+    }
+    const level = levelForZoom(m.getZoom());
+    const url = renderSurface(surface, breaks[level].length ? breaks[level] : breaks.concelho);
+    const src = m.getSource('surface') as maplibregl.ImageSource | undefined;
+    if (src) src.updateImage({ url, coordinates: surface.grid.corners });
+    else {
+      m.addSource('surface', { type: 'image', url, coordinates: surface.grid.corners });
+      m.addLayer({ id: 'surface', type: 'raster', source: 'surface', paint: { 'raster-opacity': 0.9, 'raster-resampling': 'linear', 'raster-fade-duration': 0 } }, 'line-freguesia');
+    }
+  }, [surface, breaks]);
 
   // New values on the map (another indicator or filter): report what is on screen again.
   useEffect(() => {
